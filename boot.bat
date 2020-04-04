@@ -1,0 +1,1 @@
+java -cp  target/GrainSpace-1.0.jar org.ssochi.grainspace.Main
