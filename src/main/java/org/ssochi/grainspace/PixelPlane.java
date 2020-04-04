@@ -25,6 +25,7 @@ public class PixelPlane extends JFrame {
     private int skipCounter = 0;
     private long frame = 0;
     private long last = System.currentTimeMillis();
+    private boolean stop = false;
 
 
     private static final int DEFAULT_BUFFER_CAPACITY = 10;
@@ -67,7 +68,11 @@ public class PixelPlane extends JFrame {
                         skip++;
                         break;
                     case 'o':
-                        skip = Math.max(1,skip - 1);
+                        skip = Math.max(0,skip - 1);
+                        break;
+                    case 'p':
+                        stop = !stop;
+                        repaint();
                         break;
                 }
             }
@@ -132,10 +137,11 @@ public class PixelPlane extends JFrame {
 
 
     public void update(PixelInfo info) throws InterruptedException {
-        repaint();
         if (skipCounter + 1 == skip){
             buf.put(info);
         }
+        if (stop) return;
+        repaint();
         skipCounter = (++skipCounter) % skip;
     }
 
@@ -191,7 +197,8 @@ public class PixelPlane extends JFrame {
     }
 
     private void setInfo() {
-        setTitle("frame=" + frame + "," + ",zoom=" + zoom + "skip=" + skip + ",bufSize=" +  buf.size() + ",操作说明 : w s a d移动,i o加减skip,鼠标左右键放大缩小");
+        setTitle("frame=" + frame + "," + ",zoom=" + zoom + "skip=" + skip + ",bufSize=" +  buf.size() + ",操作说明 : w s a d移动,i o加减skip,鼠标左右键放大缩小" +
+                "p暂停");
     }
 }
 

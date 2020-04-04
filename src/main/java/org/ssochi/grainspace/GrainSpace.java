@@ -90,6 +90,7 @@ public class GrainSpace {
      * @param light 粒子亮度的放大倍数，light较大时能看到更多细节
      * @throws InterruptedException
      */
+    @SuppressWarnings("JavaDoc")
     private void updatePlane(int light) throws InterruptedException {
         for (int i = 0; i < len; i++) {
             for (int j = 0; j < len; j++) {
