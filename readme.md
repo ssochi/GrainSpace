@@ -1,9 +1,9 @@
-#GrainSpace
+# GrainSpace
 
-##package
+## package
 > mvn clean install
 
-##run
+## run
 >boot.bat 
 
 or
