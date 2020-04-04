@@ -68,7 +68,7 @@ public class PixelPlane extends JFrame {
                         skip++;
                         break;
                     case 'o':
-                        skip = Math.max(0,skip - 1);
+                        skip = Math.max(1,skip - 1);
                         break;
                     case 'p':
                         stop = !stop;
