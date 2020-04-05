@@ -2,14 +2,12 @@ package org.ssochi.grainspace;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class PixelPlane extends JFrame {
+public class PixelPlane extends JFrame{
     //窗口大小
     private int width,height;
     private int realW,realH;
@@ -25,10 +23,10 @@ public class PixelPlane extends JFrame {
     private int skipCounter = 0;
     private long frame = 0;
     private long last = System.currentTimeMillis();
-    private boolean stop = false;
 
 
     private static final int DEFAULT_BUFFER_CAPACITY = 10;
+    private boolean modifyBasic = false;
 
     PixelPlane(int realW,int realH){
         super("PixelShowBox");
@@ -42,7 +40,8 @@ public class PixelPlane extends JFrame {
         var dim = Toolkit.getDefaultToolkit().getScreenSize();
         width = (int) dim.getWidth();
         height = (int) dim.getHeight();
-
+        image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        imageMirror = new int[width][height];
         this.setSize(width, height);
         this.setVisible(true);
 
@@ -53,16 +52,16 @@ public class PixelPlane extends JFrame {
                 var key = e.getKeyChar();
                 switch (key){
                     case 'w':
-                        basicY = modifyBasic(basicY,-zoom,realH);
+                        basicY = modifyBasic(basicY,-zoom,realH,height);
                         break;
                     case 's':
-                        basicY = modifyBasic(basicY,zoom,realH);
+                        basicY = modifyBasic(basicY,zoom,realH,height);
                         break;
                     case 'a':
-                        basicX = modifyBasic(basicX,-zoom,realW);
+                        basicX = modifyBasic(basicX,-zoom,realW,width);
                         break;
                     case 'd':
-                        basicX = modifyBasic(basicX,zoom,realW);
+                        basicX = modifyBasic(basicX,zoom,realW,width);
                         break;
                     case 'i':
                         skip++;
@@ -70,19 +69,16 @@ public class PixelPlane extends JFrame {
                     case 'o':
                         skip = Math.max(1,skip - 1);
                         break;
-                    case 'p':
-                        stop = !stop;
-                        repaint();
-                        break;
                 }
             }
 
-            private int modifyBasic(int basic, int zoom,int max) {
+            private int modifyBasic(int basic, int zoom,int max,int gap) {
                 var abs = Math.max(1,height / Math.abs(zoom) / 25);
                 var next = zoom > 0 ? basic + abs : basic - abs;
-                if (next > max || next < 0){
+                if (next + gap / zoom > max || next < 0){
                     return basic;
                 }
+                modifyBasic = true;
                 return next;
             }
         });
@@ -109,7 +105,7 @@ public class PixelPlane extends JFrame {
         if (basic < 0) return 0;
         return Math.min(basic, max);
     }
-    private void controlBasic(Point point, boolean bigger) {
+    private void controlBasic(Point point,boolean bigger) {
         point.x = (int) (basicX + point.x * 1f/ zoom);
         point.y = (int) (basicY + point.y * 1f/ zoom);
 
@@ -129,6 +125,7 @@ public class PixelPlane extends JFrame {
 
         basicX = validBasic(basicX,realW);
         basicY = validBasic(basicY,realH);
+        modifyBasic = true;
     }
 
     private boolean isPointValid(Point point) {
@@ -137,11 +134,10 @@ public class PixelPlane extends JFrame {
 
 
     public void update(PixelInfo info) throws InterruptedException {
+        repaint();
         if (skipCounter + 1 == skip){
             buf.put(info);
         }
-        if (stop) return;
-        repaint();
         skipCounter = (++skipCounter) % skip;
     }
 
@@ -152,41 +148,55 @@ public class PixelPlane extends JFrame {
 
     @Override
     public void paint(Graphics g) {
+        var current = System.currentTimeMillis();
         if (paint0(g)){
+            System.out.println("paint cost = " + (System.currentTimeMillis() - current) + " / " + (System.currentTimeMillis() - last));
             frame = (long) (1 / ((System.currentTimeMillis() - last) / 1000f));
             last = System.currentTimeMillis();
         }
 
     }
-
+    BufferedImage image;
+    int[][] imageMirror;
     private boolean paint0(Graphics g) {
         setInfo();
         try{
             if (buf.size() > 0){
                 var content = buf.take();
 
-                int maxHeight = height / zoom;
-                int maxWidth = width / zoom;
-
                 if (basicX > realH || basicY > realW){
                     return false;
                 }
-                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                var maxX = Math.min(basicX + maxWidth,realW);
-                var maxY = Math.min(basicY + maxHeight,realH);
+                var maxX = Math.min(basicX + width / zoom,realW);
+                var maxY = Math.min(basicY + height / zoom,realH);
 
                 var countX = maxX - basicX ;
                 var countY = maxY - basicY ;
+                int light = 0;
+                boolean forceUpdate = false;
+                if (modifyBasic){
+                    modifyBasic = false;
+                    for (int i = 0; i < width; i++) {
+                        for (int j = 0; j < height; j++) {
+                            image.setRGB(i,j,0);
+                        }
+                    }
+                    forceUpdate = true;
+                }
                 for (int x = 0; x < countX; x++) {
                     for (int y = 0; y < countY; y++) {
                         for (int ix = 0; ix < zoom; ix++) {
                             for (int iy = 0; iy < zoom; iy++) {
-                                image.setRGB(x*zoom + ix,y*zoom + iy,content.getPixelArray()[x + basicX][y + basicY]);
+                                light = content.getPixelArray()[x + basicX][y + basicY];
+                                if(forceUpdate || imageMirror[x*zoom + ix][y*zoom + iy] != light){
+                                    imageMirror[x*zoom + ix][y*zoom + iy] = light;
+                                    image.setRGB(x*zoom + ix,y*zoom + iy,light);
+                                }
                             }
                         }
                     }
                 }
-                g.drawImage(image,0,0,null);
+                g.drawImage(image, 0, 0, null);
                 return true;
             }
         }catch (Exception ex){
@@ -195,10 +205,13 @@ public class PixelPlane extends JFrame {
         return false;
 
     }
-
+    private long lastSetInfo = System.currentTimeMillis();
     private void setInfo() {
-        setTitle("frame=" + frame + "," + ",zoom=" + zoom + "skip=" + skip + ",bufSize=" +  buf.size() + ",操作说明 : w s a d移动,i o加减skip,鼠标左右键放大缩小" +
-                "p暂停");
+        var t = System.currentTimeMillis();
+        if (t - lastSetInfo > 1000){
+            setTitle("frame=" + frame + "," + ",zoom=" + zoom + "skip=" + skip + ",bufSize=" +  buf.size() + ",操作说明 : w s a d移动,i o加减skip,鼠标左右键放大缩小");
+            lastSetInfo = t;
+        }
     }
 }
 
