@@ -1,6 +1,6 @@
 # GrainSpace
 
-##JDK
+## JDK
 require 11
 
 ## package
