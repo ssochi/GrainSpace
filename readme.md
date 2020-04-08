@@ -1,5 +1,8 @@
 # GrainSpace
 
+##JDK
+require 11
+
 ## package
 > mvn clean install
 
